@@ -10,7 +10,7 @@ const corsHeaders = (origin: string) => ({
 const json = (status: number, body: Record<string, unknown>, origin: string) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } })
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   const origin = req.headers.get('origin') ?? ''
   const allowedOrigin = Deno.env.get('SITE_ORIGIN') ?? ''
   const localOrigin = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
@@ -31,10 +31,9 @@ Deno.serve(async (req) => {
   const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
   const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
   const from = Deno.env.get('TWILIO_FROM_NUMBER')
-  const whatsappFrom = Deno.env.get('TWILIO_WHATSAPP_FROM')
   const to = Deno.env.get('CONTACT_ALERT_PHONE')
-  if (!accountSid || !authToken || !from || !whatsappFrom || !to) {
-    console.error('Both contact alert channels must be configured')
+  if (!accountSid || !authToken || !from || !to) {
+    console.error('SMS contact alerts are not configured')
     return json(503, { error: 'Contact alerts are not configured yet' }, origin)
   }
 
@@ -58,8 +57,12 @@ Deno.serve(async (req) => {
     return json(503, { error: 'Could not save message' }, origin)
   }
 
-  const sendAlert = async (sender: string, recipient: string, channel: string) => {
-    const params = new URLSearchParams({ To: recipient, From: sender, Body: `New portfolio message from ${name} (${email}). Sign in to your portfolio admin to read it.` })
+  const sendSmsAlert = async () => {
+    const params = new URLSearchParams({
+      To: to,
+      From: from,
+      Body: `New portfolio message from ${name} (${email}). Sign in to your portfolio admin to read it.`,
+    })
     try {
       const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
         method: 'POST',
@@ -69,13 +72,12 @@ Deno.serve(async (req) => {
         },
         body: params,
       })
-      if (!response.ok) console.error(`Contact ${channel} delivery failed with status`, response.status)
+      if (!response.ok) console.error('Contact SMS delivery failed with status', response.status)
     } catch {
-      console.error(`Contact ${channel} delivery request failed`)
+      console.error('Contact SMS delivery request failed')
     }
   }
-  await sendAlert(from, to, 'SMS')
-  await sendAlert(`whatsapp:${whatsappFrom}`, `whatsapp:${to}`, 'WhatsApp')
+  await sendSmsAlert()
 
   return json(200, { ok: true }, origin)
 })
