@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ExternalLink, Award, Code2, BrainCircuit, Boxes, Server, Palette, Cloud, Layers, Github, Play, Globe2, X, Braces, Database, GitBranch, ShieldCheck, Smartphone, Terminal, PanelsTopLeft } from 'lucide-react'
+import { ExternalLink, Award, Code2, BrainCircuit, Boxes, Server, Palette, Cloud, Layers, Github, Play, Globe2, X, Braces, Database, GitBranch, ShieldCheck, Smartphone, Terminal, MessageCircle, Users, Lightbulb, Workflow, BriefcaseBusiness } from 'lucide-react'
 
 const fade = {
   initial: { opacity: 0, y: 30 },
@@ -169,26 +169,48 @@ function ProjectVideo({ project, url, onClose }) {
 }
 
 export function Skills({ skills }) {
-  // Match the current skill name so changes made in Admin automatically update its symbol.
+  // Match brand names first; admins can change a skill name and its logo updates instantly.
   const skillIcon = (name = '') => {
     const value = name.toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').trim()
-    if (/\bpython\b/.test(value)) return 'python'
-    if (/\bcss(?:3)?\b/.test(value)) return 'css'
-    if (/\bhtml(?:5)?\b/.test(value)) return 'html'
-    if (/\b(pytorch|tensorflow|machine learning|\bml\b|ai|artificial intelligence|data science)\b/.test(value)) return BrainCircuit
-    if (/\b(three(?:\.js)?|3d|webgl|blender|unity|unreal)\b/.test(value)) return Boxes
-    if (/\b(sql|database|postgres(?:ql)?|mysql|mongodb|supabase|firebase|redis)\b/.test(value)) return Database
-    if (/\b(node(?:\.js)?|express|api|backend|back end|spring|django|flask)\b/.test(value)) return Server
-    if (/\b(android|ios|mobile|flutter|react native)\b/.test(value)) return Smartphone
-    if (/\b(react|next(?:\.js)?|vue|angular|svelte|frontend|front end)\b/.test(value)) return Code2
-    if (/\b(tailwind|sass|scss|web design)\b/.test(value)) return PanelsTopLeft
-    if (/\b(ui|ux|design|figma|photoshop|illustrator|canva)\b/.test(value)) return Palette
-    if (/\b(cloud|devops|aws|azure|gcp|docker|kubernetes|vercel)\b/.test(value)) return Cloud
-    if (/\b(git|github|gitlab|version control)\b/.test(value)) return GitBranch
-    if (/\b(security|cybersecurity|penetration testing)\b/.test(value)) return ShieldCheck
-    if (/\b(linux|bash|terminal|shell|powershell)\b/.test(value)) return Terminal
-    if (/\b(javascript|typescript|java|programming|coding)\b/.test(value) || /(?:^|\s)c(?:\+\+|#)?(?:\s|$)/.test(value)) return Braces
-    return Code2
+    const brands = [
+      [/\bpython\b/, 'python'], [/\bcss(?:3)?\b/, 'css3'], [/\bhtml(?:5)?\b/, 'html5'],
+      [/\bjavascript\b|\bjs\b/, 'javascript'], [/\btypescript\b|\bts\b/, 'typescript'],
+      [/\breact(?:\.js)?\b/, 'react'], [/\bnext(?:\.js)?\b/, 'nextdotjs'], [/\bvue(?:\.js)?\b/, 'vuedotjs'],
+      [/\bangular\b/, 'angular'], [/\bsvelte\b/, 'svelte'], [/\btailwind(?:\s*css)?\b/, 'tailwindcss'],
+      [/\bbootstrap\b/, 'bootstrap'], [/\bsass\b|\bscss\b/, 'sass'], [/\bfigma\b/, 'figma'],
+      [/\bnode(?:\.js)?\b/, 'nodedotjs'], [/\bexpress(?:\.js)?\b/, 'express'], [/\bdjango\b/, 'django'],
+      [/\bflask\b/, 'flask'], [/\bjava\b/, 'openjdk'], [/\bspring(?:\s*boot)?\b/, 'spring'],
+      [/\bc\+\+\b/, 'cplusplus'], [/\bc#\b|\bcsharp\b/, 'csharp'], [/\bgo(lang)?\b/, 'go'],
+      [/\brust\b/, 'rust'], [/\bphp\b/, 'php'], [/\bruby\b/, 'ruby'], [/\bswift\b/, 'swift'],
+      [/\bkotlin\b/, 'kotlin'], [/\bpytorch\b/, 'pytorch'], [/\btensorflow\b/, 'tensorflow'],
+      [/\bthree(?:\.js)?\b/, 'threedotjs'], [/\bblender\b/, 'blender'], [/\bunity\b/, 'unity'],
+      [/\bpostgres(?:ql)?\b/, 'postgresql'], [/\bmysql\b/, 'mysql'], [/\bmongodb\b/, 'mongodb'],
+      [/\bsupabase\b/, 'supabase'], [/\bfirebase\b/, 'firebase'], [/\bredis\b/, 'redis'],
+      [/\bgithub\b/, 'github'], [/\bgitlab\b/, 'gitlab'], [/\bdocker\b/, 'docker'],
+      [/\bkubernetes\b/, 'kubernetes'], [/\baws\b|amazon web services/, 'amazonaws'],
+      [/\bazure\b|microsoft azure/, 'microsoftazure'], [/\bgcp\b|google cloud/, 'googlecloud'],
+      [/\bvercel\b/, 'vercel'], [/\blinux\b/, 'linux'], [/\bfigma\b/, 'figma'],
+    ]
+    const match = brands.find(([pattern]) => pattern.test(value))
+    if (match) return { kind: 'brand', slug: match[1] }
+    if (/\b(machine learning|\bml\b|ai|artificial intelligence|data science|deep learning)\b/.test(value)) return { kind: 'lucide', Icon: BrainCircuit, color: '#8b5cf6' }
+    if (/\b(three|3d|webgl|unreal)\b/.test(value)) return { kind: 'lucide', Icon: Boxes, color: '#f97316' }
+    if (/\b(sql|database|data|analytics)\b/.test(value)) return { kind: 'lucide', Icon: Database, color: '#0ea5e9' }
+    if (/\b(api|backend|back end|server)\b/.test(value)) return { kind: 'lucide', Icon: Server, color: '#22c55e' }
+    if (/\b(android|ios|mobile|flutter|react native)\b/.test(value)) return { kind: 'lucide', Icon: Smartphone, color: '#14b8a6' }
+    if (/\b(ui|ux|design|photoshop|illustrator|canva)\b/.test(value)) return { kind: 'lucide', Icon: Palette, color: '#ec4899' }
+    if (/\b(cloud|devops)\b/.test(value)) return { kind: 'lucide', Icon: Cloud, color: '#38bdf8' }
+    if (/\b(git|version control)\b/.test(value)) return { kind: 'lucide', Icon: GitBranch, color: '#f97316' }
+    if (/\b(security|cybersecurity|penetration testing)\b/.test(value)) return { kind: 'lucide', Icon: ShieldCheck, color: '#ef4444' }
+    if (/\b(linux|bash|terminal|shell|powershell)\b/.test(value)) return { kind: 'lucide', Icon: Terminal, color: '#64748b' }
+    if (/\b(communication|public speaking|presentation)\b/.test(value)) return { kind: 'lucide', Icon: MessageCircle, color: '#06b6d4' }
+    if (/\b(leadership|teamwork|collaboration)\b/.test(value)) return { kind: 'lucide', Icon: Users, color: '#f59e0b' }
+    if (/\b(problem solving|critical thinking|creativity)\b/.test(value)) return { kind: 'lucide', Icon: Lightbulb, color: '#eab308' }
+    if (/\b(project management|agile|scrum)\b/.test(value)) return { kind: 'lucide', Icon: Workflow, color: '#10b981' }
+    if (/\b(marketing|business|entrepreneurship)\b/.test(value)) return { kind: 'lucide', Icon: BriefcaseBusiness, color: '#f97316' }
+    if (/\b(programming|coding|software|development)\b/.test(value) || /(?:^|\s)c(?:\+\+|#)?(?:\s|$)/.test(value)) return { kind: 'lucide', Icon: Braces, color: '#6366f1' }
+    // Generic soft-skill names still get a relevant, colorful icon instead of a random brand logo.
+    return { kind: 'lucide', Icon: Code2, color: '#6366f1' }
   }
   return (
     <section id="skills" className="section-shell section-shell--soft py-20">
@@ -203,7 +225,7 @@ export function Skills({ skills }) {
   )
 }
 
-function SkillCard({ skill, index, icon: Icon }) {
+function SkillCard({ skill, index, icon }) {
   const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const onPointerMove = (event) => {
     if (event.pointerType !== 'mouse') return
@@ -218,8 +240,10 @@ function SkillCard({ skill, index, icon: Icon }) {
       whileHover={{ y: -6 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.25, delay: index * 0.04 }}
       style={{ rotateX: tilt.x, rotateY: tilt.y, transformPerspective: 900, transformStyle: 'preserve-3d' }}
       className="group glass rounded-2xl p-5 flex items-center gap-4 transition-shadow hover:shadow-xl hover:border-black/20 dark:hover:border-white/30">
-      <motion.div whileHover={{ rotate: 8 }} className="w-12 h-12 shrink-0 rounded-xl bg-black text-white dark:bg-white dark:text-black grid place-items-center" style={{ transform: 'translateZ(24px)' }}>
-        {Icon === 'python' ? <PythonSkillMark /> : Icon === 'css' ? <CssSkillMark /> : Icon === 'html' ? <HtmlSkillMark /> : <Icon size={22} />}
+      <motion.div whileHover={{ rotate: 8 }} className="w-12 h-12 shrink-0 rounded-xl bg-white dark:bg-neutral-100 border border-black/5 dark:border-white/10 grid place-items-center shadow-sm" style={{ transform: 'translateZ(24px)' }}>
+        {icon.kind === 'brand'
+          ? <BrandSkillMark slug={icon.slug} name={skill.name} />
+          : <icon.Icon size={23} strokeWidth={2.2} style={{ color: icon.color }} aria-label={`${skill.name} skill icon`} />}
       </motion.div>
       <div className="min-w-0" style={{ transform: 'translateZ(12px)' }}>
         <h3 className="font-semibold">{skill.name}</h3>
@@ -229,27 +253,15 @@ function SkillCard({ skill, index, icon: Icon }) {
   )
 }
 
-function PythonSkillMark() {
-  return <svg width="26" height="26" viewBox="0 0 32 32" role="img" aria-label="Python logo" fill="none">
-    <path fill="#3776AB" d="M15.8 3.5c-6.5 0-6.1 2.8-6.1 2.8v4h6.2v1.2H7.2S3 11 3 17.2s3.7 6 3.7 6h2.2v-3.1s-.1-3.7 3.7-3.7h6.3s3.5.1 3.5-3.4V7.3s.5-3.8-6.6-3.8Zm-3.4 2.1a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z" />
-    <path fill="#FFD343" d="M16.2 28.5c6.5 0 6.1-2.8 6.1-2.8v-4h-6.2v-1.2h8.7s4.2.5 4.2-5.7-3.7-6-3.7-6h-2.2v3.1s.1 3.7-3.7 3.7h-6.3s-3.5-.1-3.5 3.4v5.7s-.5 3.8 6.6 3.8Zm3.4-2.1a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4Z" />
-  </svg>
-}
-
-function CssSkillMark() {
-  return <svg width="25" height="28" viewBox="0 0 24 28" role="img" aria-label="CSS3 logo">
-    <path fill="#1572B6" d="M2 1h20l-1.8 22L12 27l-8.2-4L2 1Z" />
-    <path fill="#33A9DC" d="M12 3v21.3l6.6-3.2L20.1 3H12Z" />
-    <path fill="#fff" d="M6 6h12l-.3 3H9.3l.2 2h8l-.6 7.1-4.9 2.4-4.9-2.4-.3-3.6h3l.1 1.7 2.1 1 2.1-1 .2-2.4H7.2L6 6Z" />
-  </svg>
-}
-
-function HtmlSkillMark() {
-  return <svg width="25" height="28" viewBox="0 0 24 28" role="img" aria-label="HTML5 logo">
-    <path fill="#E34F26" d="M2 1h20l-1.8 22L12 27l-8.2-4L2 1Z" />
-    <path fill="#EF652A" d="M12 3v21.3l6.6-3.2L20.1 3H12Z" />
-    <path fill="#fff" d="M6 6h12l-.3 3H9.3l.2 2h8l-.6 7.1-4.9 2.4-4.9-2.4-.3-3.6h3l.1 1.7 2.1 1 2.1-1 .2-2.4H7.2L6 6Z" />
-  </svg>
+function BrandSkillMark({ slug, name }) {
+  const [failed, setFailed] = useState(false)
+  const fallbackColor = '#6366f1'
+  const fallbackIcon = /design|figma|photoshop|illustrator|canva/i.test(name) ? Palette :
+    /data|sql|database/i.test(name) ? Database : /cloud|devops/i.test(name) ? Cloud :
+    /mobile|android|ios|flutter/i.test(name) ? Smartphone : Code2
+  const FallbackIcon = fallbackIcon
+  if (failed) return <FallbackIcon size={23} strokeWidth={2.2} style={{ color: fallbackColor }} aria-label={`${name} skill icon`} />
+  return <img src={`https://cdn.simpleicons.org/${slug}`} alt={`${name} logo`} width="26" height="26" loading="lazy" onError={() => setFailed(true)} />
 }
 
 export function Experience({ experience }) {
