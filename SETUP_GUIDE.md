@@ -1,6 +1,6 @@
 # Portfolio setup and deployment
 
-This guide covers local setup, Supabase, project image uploads, contact alerts, and publishing
+This guide covers local setup, Supabase, project image uploads, contact email notifications, and publishing
 the portfolio on Vercel. The site is built with React, Vite, and Tailwind CSS.
 
 ## 1. Run the site locally
@@ -102,31 +102,45 @@ After Vercel gives you a URL, open **Supabase → Authentication → URL Configu
 `http://localhost:5173/**` too if you want to test authentication locally. If you add a custom
 domain in Vercel, add that domain in Supabase as well.
 
-## 5. Enable SMS and WhatsApp contact alerts
+## 5. Enable email contact notifications
 
-The contact form stores messages in Supabase. To send alerts to your phone by both channels,
-create/configure SMS and WhatsApp senders in Twilio. Trial accounts generally require verified
-recipients; WhatsApp Sandbox recipients must opt in. Production WhatsApp delivery needs the
-appropriate Twilio/WhatsApp setup.
+The public contact form saves each message in Supabase and emails its full contents to your
+inbox. This project sends email through Resend from the Supabase Edge Function, so the Resend
+API key stays on the server and is never exposed in the website.
 
-After the Vercel deployment is live, install/use the Supabase CLI from the project folder and
-run:
+1. Create a Resend account at [resend.com](https://resend.com).
+2. In Resend, open **Domains → Add Domain** and verify a domain you own by adding the DNS
+   records Resend provides at your domain registrar. Resend requires a verified domain to send
+   mail. Use an address on that verified domain for the sender, for example
+   `Portfolio Contact <contact@yourdomain.com>`.
+3. In Resend, open **API Keys → Create API Key** and create a key with sending access for that
+   domain. Copy it once and keep it private.
+4. In Supabase, open your project and go to **Edge Functions → Secrets**. Add these secrets:
 
-```powershell
-npx supabase login
-npx supabase link --project-ref YOUR_PROJECT_REF
-npx supabase secrets set SITE_ORIGIN=https://YOUR_VERCEL_DOMAIN CONTACT_ALERT_PHONE=YOUR_PHONE_IN_E164 TWILIO_ACCOUNT_SID=YOUR_TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN=YOUR_TWILIO_AUTH_TOKEN TWILIO_FROM_NUMBER=YOUR_TWILIO_SMS_SENDER TWILIO_WHATSAPP_FROM=YOUR_TWILIO_WHATSAPP_SENDER
-npx supabase functions deploy contact-message
-```
+   - `SITE_ORIGIN` = your exact live Vercel URL, such as `https://your-site.vercel.app`, with
+     no trailing slash.
+   - `CONTACT_EMAIL` = the inbox where you want contact messages delivered.
+   - `RESEND_API_KEY` = the Resend API key.
+   - `EMAIL_FROM` = a sender address on your verified domain, e.g.
+     `Portfolio Contact <contact@yourdomain.com>`.
 
-Use your exact live site origin for `SITE_ORIGIN`, without a trailing slash. Set the alert
-phone in international format, such as `+91...`. Use your own Twilio sender numbers; the
-WhatsApp sender value is the number only, without the `whatsapp:` prefix. Keep Twilio values
-in Supabase secrets only. Do not put them in GitHub, `.env`, Vercel environment variables, or
-frontend code.
+   Do not add these private values to GitHub, the frontend `.env`, or Vercel environment
+   variables. Supabase Edge Function Secrets is the correct place for them.
+5. In the VS Code terminal at the project folder, deploy the function:
 
-Submit a test message from the live site. Confirm it appears in the Admin messages section
-and that both alerts arrive. Messages are saved even if Twilio cannot deliver an alert.
+   ```powershell
+   npx supabase login
+   npx supabase link --project-ref YOUR_PROJECT_REF
+   npx supabase functions deploy contact-message
+   ```
+
+   If the project is already linked, skip the `link` command. Supabase dashboard secrets take
+   effect for the deployed function; redeploy after changing its code.
+6. Submit a test message from the live site. Confirm it appears in the Admin messages section
+   and arrives in your inbox. Check spam/junk and Resend's **Emails/Logs** if it does not arrive.
+
+The Twilio SMS integration has been removed. You can delete old `TWILIO_*` secrets from
+Supabase **Edge Functions → Secrets**; the updated function no longer uses them.
 
 ## 6. Edit the live portfolio
 
@@ -141,8 +155,12 @@ GitHub for Vercel to build.
   `VITE_SUPABASE_ANON_KEY` values, then redeploy.
 - **Project uploads fail:** confirm `migration_projects_media.sql` ran successfully and that
   you are signed into Admin with the authorized account.
-- **Contact form fails:** confirm `migration_contact_security.sql` ran and the Edge Function is
-  deployed with all required Supabase and Twilio secrets. Check Supabase **Edge Function Logs**.
+- **Contact form fails:** confirm `migration_contact_security.sql` ran, `SITE_ORIGIN` exactly
+  matches the live website URL, and the Edge Function is deployed. Check Supabase **Edge Function
+  Logs**.
+- **Contact message is saved but email does not arrive:** verify your Resend domain, confirm
+  `RESEND_API_KEY`, `EMAIL_FROM`, and `CONTACT_EMAIL` in Supabase **Edge Function Secrets**, and
+  inspect Resend's email logs and your spam/junk folder.
 - **Build fails on Vercel:** check the deployment build log and make sure the build command is
   `npm run build` and output directory is `dist`.
 

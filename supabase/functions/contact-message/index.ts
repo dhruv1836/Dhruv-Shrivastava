@@ -28,14 +28,9 @@ Deno.serve(async (req: Request) => {
   if (!name || name.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !body || body.length > 5000) {
     return json(400, { error: 'Please check the form fields' }, origin)
   }
-  const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
-  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
-  const from = Deno.env.get('TWILIO_FROM_NUMBER')
-  const to = Deno.env.get('CONTACT_ALERT_PHONE')
-  if (!accountSid || !authToken || !from || !to) {
-    console.error('SMS contact alerts are not configured')
-    return json(503, { error: 'Contact alerts are not configured yet' }, origin)
-  }
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  const emailFrom = Deno.env.get('EMAIL_FROM')
+  const contactEmail = Deno.env.get('CONTACT_EMAIL')
 
   const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(forwarded))
@@ -57,27 +52,44 @@ Deno.serve(async (req: Request) => {
     return json(503, { error: 'Could not save message' }, origin)
   }
 
-  const sendSmsAlert = async () => {
-    const params = new URLSearchParams({
-      To: to,
-      From: from,
-      Body: `New portfolio message from ${name} (${email}). Sign in to your portfolio admin to read it.`,
-    })
-    try {
-      const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params,
-      })
-      if (!response.ok) console.error('Contact SMS delivery failed with status', response.status)
-    } catch {
-      console.error('Contact SMS delivery request failed')
-    }
+  // Escape visitor-controlled content before placing it in HTML email.
+  const escapeHtml = (value: string) => value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+  if (!resendApiKey || !emailFrom || !contactEmail) {
+    console.error('Contact message was saved, but email delivery is not configured')
+    return json(503, { error: 'Your message was saved, but the email notification is not configured yet.' }, origin)
   }
-  await sendSmsAlert()
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: emailFrom,
+        to: [contactEmail],
+        reply_to: email,
+        subject: 'New message from your portfolio',
+        text: `New portfolio contact message\n\nName: ${name}\nEmail: ${email}\n\nMessage:\n${body}`,
+        html: `<h2>New portfolio contact message</h2><p><strong>Name:</strong> ${escapeHtml(name)}</p><p><strong>Email:</strong> <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></p><p><strong>Message:</strong></p><p>${escapeHtml(body).replace(/\n/g, '<br>')}</p>`,
+      }),
+    })
+
+    if (!response.ok) {
+      console.error('Contact email delivery failed with status', response.status)
+      return json(502, { error: 'Your message was saved, but the email could not be delivered. Please email me directly.' }, origin)
+    }
+  } catch {
+    console.error('Contact email delivery request failed')
+    return json(502, { error: 'Your message was saved, but the email could not be delivered. Please email me directly.' }, origin)
+  }
 
   return json(200, { ok: true }, origin)
 })

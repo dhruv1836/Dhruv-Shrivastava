@@ -6,11 +6,13 @@ import { supabase, isConfigured } from '../lib/supabase'
 export default function Contact({ profile }) {
   const [form, setForm] = useState({ name: '', email: '', body: '', website: '' })
   const [status, setStatus] = useState(null) // null | 'sending' | 'ok' | 'error'
+  const [errorMessage, setErrorMessage] = useState('Message could not be sent. Please email me directly.')
 
   const submit = async (e) => {
     e.preventDefault()
     setStatus('sending')
     if (!isConfigured) {
+      setErrorMessage('The contact service is not configured yet. Please email me directly.')
       setStatus('error')
       return
     }
@@ -18,11 +20,25 @@ export default function Contact({ profile }) {
       const { error } = await supabase.functions.invoke('contact-message', {
         body: { name: form.name, email: form.email, body: form.body, website: form.website },
       })
-      if (error) throw error
+      if (error) {
+        let message = 'Message could not be sent. Please email me directly.'
+        if (error.context instanceof Response) {
+          try {
+            const responseBody = await error.context.clone().json()
+            if (typeof responseBody.error === 'string') message = responseBody.error
+          } catch {
+            // Keep the generic message if the server response isn't JSON.
+          }
+        }
+        setErrorMessage(message)
+        setStatus('error')
+        return
+      }
       setStatus('ok')
       setForm({ name: '', email: '', body: '', website: '' })
     } catch (error) {
       console.error('Contact message failed:', error)
+      setErrorMessage('Could not reach the contact service. Please email me directly.')
       setStatus('error')
     }
   }
@@ -70,7 +86,7 @@ export default function Contact({ profile }) {
           <p role="status" className="flex items-center gap-2 text-green-600"><CheckCircle size={16} /> Thanks! Your message was sent.</p>
         )}
         {status === 'error' && (
-          <p role="alert" className="flex items-center gap-2 text-red-600"><AlertCircle size={16} /> Message could not be sent. Please email me directly.</p>
+          <p role="alert" className="flex items-center gap-2 text-red-600"><AlertCircle size={16} /> {errorMessage}</p>
         )}
       </motion.form>
       </div>
