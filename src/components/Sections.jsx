@@ -173,7 +173,7 @@ export function Skills({ skills }) {
   const skillIcon = (name = '') => {
     const value = name.toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').trim()
     const brands = [
-      [/\bpython\b/, 'python'], [/\bcss(?:3)?\b/, 'css3'], [/\bhtml(?:5)?\b/, 'html5'],
+      [/\bpython\b|\bpyhton\b/, 'python'], [/\bcss(?:3)?\b/, 'css3'], [/\bhtml(?:5)?\b/, 'html5'],
       [/\bjavascript\b|\bjs\b/, 'javascript'], [/\btypescript\b|\bts\b/, 'typescript'],
       [/\breact(?:\.js)?\b/, 'react'], [/\bnext(?:\.js)?\b/, 'nextdotjs'], [/\bvue(?:\.js)?\b/, 'vuedotjs'],
       [/\bangular\b/, 'angular'], [/\bsvelte\b/, 'svelte'], [/\btailwind(?:\s*css)?\b/, 'tailwindcss'],
@@ -209,8 +209,8 @@ export function Skills({ skills }) {
     if (/\b(project management|agile|scrum)\b/.test(value)) return { kind: 'lucide', Icon: Workflow, color: '#10b981' }
     if (/\b(marketing|business|entrepreneurship)\b/.test(value)) return { kind: 'lucide', Icon: BriefcaseBusiness, color: '#f97316' }
     if (/\b(programming|coding|software|development)\b/.test(value) || /(?:^|\s)c(?:\+\+|#)?(?:\s|$)/.test(value)) return { kind: 'lucide', Icon: Braces, color: '#6366f1' }
-    // Generic soft-skill names still get a relevant, colorful icon instead of a random brand logo.
-    return { kind: 'lucide', Icon: Code2, color: '#6366f1' }
+    // No unrelated logo for names without a clear match: show initials until a custom logo is supplied.
+    return null
   }
   return (
     <section id="skills" className="section-shell section-shell--soft py-20">
@@ -241,27 +241,27 @@ function SkillCard({ skill, index, icon }) {
       style={{ rotateX: tilt.x, rotateY: tilt.y, transformPerspective: 900, transformStyle: 'preserve-3d' }}
       className="group glass rounded-2xl p-5 flex items-center gap-4 transition-shadow hover:shadow-xl hover:border-black/20 dark:hover:border-white/30">
       <motion.div whileHover={{ rotate: 8 }} className="w-12 h-12 shrink-0 rounded-xl bg-white dark:bg-neutral-100 border border-black/5 dark:border-white/10 grid place-items-center shadow-sm" style={{ transform: 'translateZ(24px)' }}>
-        {icon.kind === 'brand'
-          ? <BrandSkillMark slug={icon.slug} name={skill.name} />
-          : <icon.Icon size={23} strokeWidth={2.2} style={{ color: icon.color }} aria-label={`${skill.name} skill icon`} />}
+          <SkillMark key={`${skill.icon_url || ''}-${icon?.slug || skill.name}`} skill={skill} icon={icon} />
       </motion.div>
       <div className="min-w-0" style={{ transform: 'translateZ(12px)' }}>
-        <h3 className="font-semibold">{skill.name}</h3>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Explore what I can build <span className="inline-block group-hover:translate-x-1 transition-transform">→</span></p>
+        <h3 className="text-lg sm:text-xl font-semibold leading-tight">{skill.name}</h3>
       </div>
     </motion.div>
   )
 }
 
-function BrandSkillMark({ slug, name }) {
+function SkillMark({ skill, icon }) {
   const [failed, setFailed] = useState(false)
-  const fallbackColor = '#6366f1'
-  const fallbackIcon = /design|figma|photoshop|illustrator|canva/i.test(name) ? Palette :
-    /data|sql|database/i.test(name) ? Database : /cloud|devops/i.test(name) ? Cloud :
-    /mobile|android|ios|flutter/i.test(name) ? Smartphone : Code2
-  const FallbackIcon = fallbackIcon
-  if (failed) return <FallbackIcon size={23} strokeWidth={2.2} style={{ color: fallbackColor }} aria-label={`${name} skill icon`} />
-  return <img src={`https://cdn.simpleicons.org/${slug}`} alt={`${name} logo`} width="26" height="26" loading="lazy" onError={() => setFailed(true)} />
+  const source = skill.icon_url || (icon?.kind === 'brand' ? `https://cdn.simpleicons.org/${icon.slug}` : '')
+  if (source && !failed) {
+    return <img key={source} src={source} alt={`${skill.name} logo`} width="28" height="28" loading="lazy" className="w-7 h-7 object-contain" onError={() => setFailed(true)} />
+  }
+  if (icon?.kind === 'lucide') {
+    const Icon = icon.Icon
+    return <Icon size={23} strokeWidth={2.2} style={{ color: icon.color }} aria-label={`${skill.name} icon`} />
+  }
+  const initials = skill.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()
+  return <span aria-label={`${skill.name} logo not set`} title="Add a custom logo in Admin" className="text-xs font-extrabold tracking-wide text-neutral-700 dark:text-neutral-800">{initials}</span>
 }
 
 export function Experience({ experience }) {

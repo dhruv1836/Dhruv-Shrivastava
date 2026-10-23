@@ -40,6 +40,14 @@ function ImageField({ label, value, bucket, onChange }) {
         </label>
         {value && <button type="button" onClick={() => onChange('')} className="text-xs text-red-600">remove</button>}
       </div>
+      <input
+        type="url"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Or paste an HTTPS image URL"
+        aria-label={`${label} URL`}
+        className="w-full sm:max-w-md mt-2 px-3 py-2 rounded-lg bg-white/70 dark:bg-white/5 border border-black/10 dark:border-white/10 outline-none focus:ring-2 ring-black/20 dark:ring-white/20 text-sm"
+      />
       {err && <p className="text-xs text-red-600 mt-1">{err}</p>}
     </div>
   )
@@ -339,6 +347,7 @@ function Dashboard({ email }) {
         ]} />
         <ListEditor table="skills" title="Skills" fields={[
           { key: 'name', label: 'Skill name' }, { key: 'level', label: 'Level (0-100)', num: true },
+          { key: 'icon_url', label: 'Custom logo (upload or paste image URL)', image: true, bucket: 'project-images' },
         ]} />
         <ListEditor table="projects" title="Projects" fields={[
           { key: 'title', label: 'Title' }, { key: 'desc', label: 'Description', textarea: true },
