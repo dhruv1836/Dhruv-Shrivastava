@@ -12,9 +12,13 @@ const json = (status: number, body: Record<string, unknown>, origin: string) =>
 
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get('origin') ?? ''
-  const allowedOrigin = Deno.env.get('SITE_ORIGIN') ?? ''
+  const allowedOrigins = (Deno.env.get('SITE_ORIGIN') ?? '')
+    .split(',')
+    .map((value) => value.trim().replace(/\/$/, ''))
   const localOrigin = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
-  if (origin !== allowedOrigin && !localOrigin) return new Response('Forbidden', { status: 403 })
+  if (!allowedOrigins.includes(origin) && !localOrigin) {
+    return json(403, { error: 'This website is not allowed. Set SITE_ORIGIN to the exact website URL in Supabase Edge Function Secrets.' }, origin)
+  }
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(origin) })
   if (req.method !== 'POST') return json(405, { error: 'Method not allowed' }, origin)
   if (Number(req.headers.get('content-length') ?? '0') > 12_000) return json(413, { error: 'Request too large' }, origin)

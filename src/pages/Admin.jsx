@@ -217,6 +217,7 @@ function Messages() {
   const [rows, setRows] = useState([])
   const [notice, setNotice] = useState('')
   const [newCount, setNewCount] = useState(0)
+  const [realtimeStatus, setRealtimeStatus] = useState('CONNECTING')
   const [notificationPermission, setNotificationPermission] = useState(
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported',
   )
@@ -224,10 +225,17 @@ function Messages() {
   const enableNotifications = async () => {
     if (!('Notification' in window)) {
       setNotificationPermission('unsupported')
+      setNotice('Desktop notifications are not supported by this browser.')
       return
     }
     const permission = await Notification.requestPermission()
     setNotificationPermission(permission)
+    if (permission === 'granted') {
+      new Notification('Portfolio alerts enabled', { body: 'You will be notified about new messages while Admin is open.' })
+      setNotice('Desktop notifications are enabled.')
+    } else if (permission === 'denied') {
+      setNotice('Notifications are blocked for this site. Allow them in your browser site settings.')
+    }
   }
 
   useEffect(() => {
@@ -247,7 +255,12 @@ function Messages() {
         clearTimeout(noticeTimeout)
         noticeTimeout = setTimeout(() => setNotice(''), 7000)
       })
-      .subscribe()
+      .subscribe((status) => {
+        setRealtimeStatus(status)
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('Admin message live updates failed:', status)
+        }
+      })
 
     supabase.from('messages').select('*').order('created_at', { ascending: false }).then(({ data }) => {
       setRows((current) => {
@@ -274,8 +287,14 @@ function Messages() {
       <div className="mb-4 flex items-center gap-2">
         <h3 className="font-bold">Contact Messages ({rows.length})</h3>
         {newCount > 0 && <span className="rounded-full bg-black px-2.5 py-1 text-xs font-medium text-white dark:bg-white dark:text-black">{newCount} new</span>}
-        {notificationPermission !== 'unsupported' && <button type="button" onClick={enableNotifications} className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 px-3 py-1.5 text-xs hover:bg-black/5 dark:hover:bg-white/10">
-          <Bell size={13} /> {notificationPermission === 'granted' ? 'Desktop alerts on' : 'Enable desktop alerts'}
+      </div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
+        <span className="inline-flex items-center gap-1.5">
+          <span className={`h-2 w-2 rounded-full ${realtimeStatus === 'SUBSCRIBED' ? 'bg-green-500' : 'bg-amber-500'}`} />
+          {realtimeStatus === 'SUBSCRIBED' ? 'Live message alerts connected' : realtimeStatus === 'CHANNEL_ERROR' || realtimeStatus === 'TIMED_OUT' ? 'Live alerts disconnected — run the Admin Realtime SQL migration' : 'Connecting live message alerts…'}
+        </span>
+        {notificationPermission !== 'unsupported' && <button type="button" onClick={enableNotifications} className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-black/5 dark:hover:bg-white/10">
+          <Bell size={13} /> {notificationPermission === 'granted' ? 'Test desktop alert' : 'Enable desktop alerts'}
         </button>}
       </div>
       {rows.length === 0 && <p className="text-sm text-neutral-500">No messages yet.</p>}

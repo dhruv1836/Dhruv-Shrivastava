@@ -22,6 +22,9 @@ export default function Contact({ profile }) {
       })
       if (error) {
         let message = 'Message could not be sent. Please email me directly.'
+        if (error.name === 'FunctionsFetchError') {
+          message = 'Could not reach Supabase. Confirm contact-message is deployed and SITE_ORIGIN matches this website.'
+        }
         if (error.context instanceof Response) {
           try {
             const responseBody = await error.context.clone().json()
@@ -38,7 +41,7 @@ export default function Contact({ profile }) {
       setForm({ name: '', email: '', body: '', website: '' })
     } catch (error) {
       console.error('Contact message failed:', error)
-      setErrorMessage('Could not reach the contact service. Please email me directly.')
+      setErrorMessage('Could not reach Supabase. Confirm contact-message is deployed and SITE_ORIGIN matches this website.')
       setStatus('error')
     }
   }
