@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase, isConfigured, ADMIN_EMAIL } from '../lib/supabase'
-import { Lock, LogOut, Save, Plus, Trash2, ArrowLeft, Loader2, Upload } from 'lucide-react'
+import { Lock, LogOut, Save, Plus, Trash2, ArrowLeft, Loader2, Upload, Bell, Mail, X } from 'lucide-react'
 
 // Uploads a file to a Supabase Storage bucket and returns its public URL.
 async function uploadImage(bucket, file) {
@@ -215,8 +215,51 @@ function ProfileEditor() {
 // ---- messages viewer ----
 function Messages() {
   const [rows, setRows] = useState([])
+  const [notice, setNotice] = useState('')
+  const [newCount, setNewCount] = useState(0)
+  const [notificationPermission, setNotificationPermission] = useState(
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported',
+  )
+
+  const enableNotifications = async () => {
+    if (!('Notification' in window)) {
+      setNotificationPermission('unsupported')
+      return
+    }
+    const permission = await Notification.requestPermission()
+    setNotificationPermission(permission)
+  }
+
   useEffect(() => {
-    supabase.from('messages').select('*').order('created_at', { ascending: false }).then(({ data }) => setRows(data || []))
+    let noticeTimeout
+    const channel = supabase
+      .channel('admin-contact-message-notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: message }) => {
+        setRows((current) => [message, ...current.filter((row) => row.id !== message.id)])
+        setNewCount((count) => count + 1)
+        setNotice(`New message from ${message.name}`)
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('New portfolio message', {
+            body: `From ${message.name}. Open Admin to read and reply.`,
+            tag: `contact-message-${message.id}`,
+          })
+        }
+        clearTimeout(noticeTimeout)
+        noticeTimeout = setTimeout(() => setNotice(''), 7000)
+      })
+      .subscribe()
+
+    supabase.from('messages').select('*').order('created_at', { ascending: false }).then(({ data }) => {
+      setRows((current) => {
+        const uniqueRows = new Map([...(data || []), ...current].map((row) => [row.id, row]))
+        return [...uniqueRows.values()].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      })
+    })
+
+    return () => {
+      clearTimeout(noticeTimeout)
+      supabase.removeChannel(channel)
+    }
   }, [])
   const del = async (id) => {
     await supabase.from('messages').delete().eq('id', id)
@@ -224,7 +267,17 @@ function Messages() {
   }
   return (
     <section className="glass rounded-2xl p-5">
-      <h3 className="font-bold mb-4">Contact Messages ({rows.length})</h3>
+      {notice && <div role="status" aria-live="polite" className="mb-4 flex items-center gap-2 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/5 px-4 py-3 text-sm">
+        <Bell size={16} /> <span>{notice}</span>
+        <button type="button" aria-label="Dismiss notification" onClick={() => setNotice('')} className="ml-auto text-neutral-500 hover:text-neutral-900 dark:hover:text-white"><X size={16} /></button>
+      </div>}
+      <div className="mb-4 flex items-center gap-2">
+        <h3 className="font-bold">Contact Messages ({rows.length})</h3>
+        {newCount > 0 && <span className="rounded-full bg-black px-2.5 py-1 text-xs font-medium text-white dark:bg-white dark:text-black">{newCount} new</span>}
+        {notificationPermission !== 'unsupported' && <button type="button" onClick={enableNotifications} className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 px-3 py-1.5 text-xs hover:bg-black/5 dark:hover:bg-white/10">
+          <Bell size={13} /> {notificationPermission === 'granted' ? 'Desktop alerts on' : 'Enable desktop alerts'}
+        </button>}
+      </div>
       {rows.length === 0 && <p className="text-sm text-neutral-500">No messages yet.</p>}
       <div className="space-y-3">
         {rows.map((m) => (
@@ -234,7 +287,12 @@ function Messages() {
               <button onClick={() => del(m.id)} className="text-red-600"><Trash2 size={14} /></button>
             </div>
             <p className="text-sm text-neutral-600 dark:text-neutral-300 mt-1">{m.body}</p>
-            <p className="text-xs text-neutral-400 mt-1">{new Date(m.created_at).toLocaleString()}</p>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-neutral-400">{new Date(m.created_at).toLocaleString()}</p>
+              <a href={`mailto:${encodeURIComponent(m.email)}?subject=${encodeURIComponent('Re: Your portfolio message')}`} className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 px-3 py-1.5 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/10">
+                <Mail size={13} /> Reply by email
+              </a>
+            </div>
           </div>
         ))}
       </div>

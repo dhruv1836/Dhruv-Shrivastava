@@ -1,6 +1,6 @@
 # Portfolio setup and deployment
 
-This guide covers local setup, Supabase, project image uploads, contact email notifications, and publishing
+This guide covers local setup, Supabase, project image uploads, Admin contact-message notifications, and publishing
 the portfolio on Vercel. The site is built with React, Vite, and Tailwind CSS.
 
 ## 1. Run the site locally
@@ -20,11 +20,12 @@ Open the Local URL printed in the terminal, usually `http://localhost:5173`.
 2. In Supabase, open **SQL Editor → New query**. For a brand-new database, paste and run the
    full `supabase_schema.sql` file. It creates the content tables, row-level security policies,
    and the project-image bucket.
-3. For an existing database that already has the portfolio schema, run these two migrations
+3. For an existing database that already has the portfolio schema, run these migrations
    instead, in this order:
    - `migration_projects_media.sql` adds project image, live site, GitHub, and video fields.
    - `migration_contact_security.sql` routes public contact submissions through the Edge
      Function and enables its request limit.
+   - `migration_admin_message_realtime.sql` enables live notifications for new messages in Admin.
 4. Go to **Authentication → Users → Add user** and create the admin account
    `dhruvshrivastava1803@gmail.com`. Set a strong password and confirm the account.
 5. Open **Project Settings → API** and copy the Project URL and the `anon` public key.
@@ -102,45 +103,32 @@ After Vercel gives you a URL, open **Supabase → Authentication → URL Configu
 `http://localhost:5173/**` too if you want to test authentication locally. If you add a custom
 domain in Vercel, add that domain in Supabase as well.
 
-## 5. Enable email contact notifications
+## 5. Public contact messages and Admin notifications
 
-The public contact form saves each message in Supabase and emails its full contents to your
-inbox. This project sends email through Resend from the Supabase Edge Function, so the Resend
-API key stays on the server and is never exposed in the website.
+Anyone can submit the contact form without signing in. The form stores messages in Supabase,
+and they appear in **Admin → Contact Messages**. When the Admin dashboard is open, a new
+message appears immediately with an in-page notification. The message list also has a **Reply
+by email** link, which opens your email app addressed to the visitor. Send the reply from that
+app; the visitor receives it as a normal email. This setup does not send an email or phone
+notification to you when the Admin dashboard is closed.
 
-1. Create a Resend account at [resend.com](https://resend.com).
-2. In Resend, open **Domains → Add Domain** and verify a domain you own by adding the DNS
-   records Resend provides at your domain registrar. Resend requires a verified domain to send
-   mail. Use an address on that verified domain for the sender, for example
-   `Portfolio Contact <contact@yourdomain.com>`.
-3. In Resend, open **API Keys → Create API Key** and create a key with sending access for that
-   domain. Copy it once and keep it private.
-4. In Supabase, open your project and go to **Edge Functions → Secrets**. Add these secrets:
+For an existing Supabase database, run `migration_admin_message_realtime.sql` in
+**Supabase → SQL Editor → New query** to enable live Admin notifications. On a new database,
+the full `supabase_schema.sql` already includes this configuration.
 
-   - `SITE_ORIGIN` = your exact live Vercel URL, such as `https://your-site.vercel.app`, with
-     no trailing slash.
-   - `CONTACT_EMAIL` = the inbox where you want contact messages delivered.
-   - `RESEND_API_KEY` = the Resend API key.
-   - `EMAIL_FROM` = a sender address on your verified domain, e.g.
-     `Portfolio Contact <contact@yourdomain.com>`.
+After pushing the website changes to GitHub, Vercel will redeploy the Admin interface. The
+contact function also needs a separate Supabase deployment from the project folder:
 
-   Do not add these private values to GitHub, the frontend `.env`, or Vercel environment
-   variables. Supabase Edge Function Secrets is the correct place for them.
-5. In the VS Code terminal at the project folder, deploy the function:
+```powershell
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy contact-message
+```
 
-   ```powershell
-   npx supabase login
-   npx supabase link --project-ref YOUR_PROJECT_REF
-   npx supabase functions deploy contact-message
-   ```
-
-   If the project is already linked, skip the `link` command. Supabase dashboard secrets take
-   effect for the deployed function; redeploy after changing its code.
-6. Submit a test message from the live site. Confirm it appears in the Admin messages section
-   and arrives in your inbox. Check spam/junk and Resend's **Emails/Logs** if it does not arrive.
-
-The Twilio SMS integration has been removed. You can delete old `TWILIO_*` secrets from
-Supabase **Edge Functions → Secrets**; the updated function no longer uses them.
+If the project is already linked, skip the `link` command. In Supabase **Edge Functions →
+Secrets**, keep `SITE_ORIGIN` set to the exact live Vercel URL (no trailing slash). No email
+provider or Twilio secrets are needed. You can remove old `RESEND_*`, `EMAIL_FROM`,
+`CONTACT_EMAIL`, and `TWILIO_*` secrets; the current function does not use them.
 
 ## 6. Edit the live portfolio
 
@@ -158,9 +146,9 @@ GitHub for Vercel to build.
 - **Contact form fails:** confirm `migration_contact_security.sql` ran, `SITE_ORIGIN` exactly
   matches the live website URL, and the Edge Function is deployed. Check Supabase **Edge Function
   Logs**.
-- **Contact message is saved but email does not arrive:** verify your Resend domain, confirm
-  `RESEND_API_KEY`, `EMAIL_FROM`, and `CONTACT_EMAIL` in Supabase **Edge Function Secrets**, and
-  inspect Resend's email logs and your spam/junk folder.
+- **New messages do not appear live in Admin:** confirm `migration_admin_message_realtime.sql`
+  ran successfully, the Admin account is signed in, and the messages table has its admin-read
+  policy.
 - **Build fails on Vercel:** check the deployment build log and make sure the build command is
   `npm run build` and output directory is `dist`.
 

@@ -28,10 +28,6 @@ Deno.serve(async (req: Request) => {
   if (!name || name.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !body || body.length > 5000) {
     return json(400, { error: 'Please check the form fields' }, origin)
   }
-  const resendApiKey = Deno.env.get('RESEND_API_KEY')
-  const emailFrom = Deno.env.get('EMAIL_FROM')
-  const contactEmail = Deno.env.get('CONTACT_EMAIL')
-
   const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(forwarded))
   const ipHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -52,44 +48,6 @@ Deno.serve(async (req: Request) => {
     return json(503, { error: 'Could not save message' }, origin)
   }
 
-  // Escape visitor-controlled content before placing it in HTML email.
-  const escapeHtml = (value: string) => value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-
-  if (!resendApiKey || !emailFrom || !contactEmail) {
-    console.error('Contact message was saved, but email delivery is not configured')
-    return json(503, { error: 'Your message was saved, but the email notification is not configured yet.' }, origin)
-  }
-
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: emailFrom,
-        to: [contactEmail],
-        reply_to: email,
-        subject: 'New message from your portfolio',
-        text: `New portfolio contact message\n\nName: ${name}\nEmail: ${email}\n\nMessage:\n${body}`,
-        html: `<h2>New portfolio contact message</h2><p><strong>Name:</strong> ${escapeHtml(name)}</p><p><strong>Email:</strong> <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></p><p><strong>Message:</strong></p><p>${escapeHtml(body).replace(/\n/g, '<br>')}</p>`,
-      }),
-    })
-
-    if (!response.ok) {
-      console.error('Contact email delivery failed with status', response.status)
-      return json(502, { error: 'Your message was saved, but the email could not be delivered. Please email me directly.' }, origin)
-    }
-  } catch {
-    console.error('Contact email delivery request failed')
-    return json(502, { error: 'Your message was saved, but the email could not be delivered. Please email me directly.' }, origin)
-  }
-
+  // Messages are delivered to the private Admin inbox in the portfolio.
   return json(200, { ok: true }, origin)
 })
